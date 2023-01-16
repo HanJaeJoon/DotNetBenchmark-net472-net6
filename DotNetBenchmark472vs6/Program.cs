@@ -1,40 +1,95 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
+using Newtonsoft.Json;
 using System;
-using System.Security.Cryptography;
+using System.Collections.Generic;
 
 namespace DotNetBenchmark472vs6
 {
     [SimpleJob(RuntimeMoniker.Net472)]
     [SimpleJob(RuntimeMoniker.Net60, baseline: true)]
     [MemoryDiagnoser]
-    public class Md5VsSha256
+    public class BenchmarkNet6Net472
     {
-        private const int N = 10000;
-        private readonly byte[] data;
-
-        private readonly SHA256 sha256 = SHA256.Create();
-        private readonly MD5 md5 = MD5.Create();
-
-        public Md5VsSha256()
+        public class WeatherForecast
         {
-            data = new byte[N];
-            new Random(42).NextBytes(data);
+            public DateTimeOffset Date { get; set; }
+            public int TemperatureCelsius { get; set; }
+            public string Summary { get; set; }
+            public string SummaryField;
+            public IList<DateTimeOffset> DatesAvailable { get; set; }
+            public Dictionary<string, HighLowTemps> TemperatureRanges { get; set; }
+            public string[] SummaryWords { get; set; }
+        }
+
+        public class HighLowTemps
+        {
+            public int High { get; set; }
+            public int Low { get; set; }
+        }
+
+        private readonly string _jsonString = @"{
+              ""Date"": ""2019-08-01T00:00:00-07:00"",
+              ""TemperatureCelsius"": 25,
+              ""Summary"": ""Hot"",
+              ""DatesAvailable"": [
+                ""2019-08-01T00:00:00-07:00"",
+                ""2019-08-02T00:00:00-07:00""
+              ],
+              ""TemperatureRanges"": {
+                            ""Cold"": {
+                                ""High"": 20,
+                  ""Low"": -10
+                            },
+                ""Hot"": {
+                                ""High"": 60,
+                  ""Low"": 20
+                }
+                        },
+              ""SummaryWords"": [
+                ""Cool"",
+                ""Windy"",
+                ""Humid""
+              ]
+            }
+        ";
+
+        [Benchmark]
+        public string SerializeJson()
+        {
+            string jsonString = JsonConvert.SerializeObject(new WeatherForecast
+            {
+                Date = DateTime.Parse("2019-08-01"),
+                TemperatureCelsius = 25,
+                Summary = "Hot",
+                SummaryField = "Hot",
+                DatesAvailable = new List<DateTimeOffset> { DateTime.Parse("2019-08-01"), DateTime.Parse("2019-08-02") },
+                TemperatureRanges = new Dictionary<string, HighLowTemps>
+                {
+                    ["Cold"] = new HighLowTemps { High = 20, Low = -10 },
+                    ["Hot"] = new HighLowTemps { High = 60, Low = 20 },
+                },
+                SummaryWords = new[] { "Cool", "Windy", "Humid" },
+            });
+
+            return jsonString;
         }
 
         [Benchmark]
-        public byte[] Sha256() => sha256.ComputeHash(data);
+        public WeatherForecast DeserializeJson()
+        {
+            WeatherForecast result = JsonConvert.DeserializeObject<WeatherForecast>(_jsonString);
 
-        [Benchmark]
-        public byte[] Md5() => md5.ComputeHash(data);
+            return result;
+        }
     }
 
     public class Program
     {
         public static void Main(string[] args)
         {
-            BenchmarkDotNet.Reports.Summary summary = BenchmarkRunner.Run<Md5VsSha256>();
+            BenchmarkDotNet.Reports.Summary summary = BenchmarkRunner.Run<BenchmarkNet6Net472>();
         }
     }
 }
